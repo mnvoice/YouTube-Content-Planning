@@ -49,7 +49,36 @@ python -m ytplan script --topic M03 --prompt-only  # claude.ai에 붙여 넣을 
 
 ## API 키 넣기
 
-`.env.example`을 `.env`로 복사한 뒤 값을 채웁니다. `.env`는 git에 올라가지 않습니다.
+키는 프로젝트 폴더의 `.env` 파일에 저장합니다. `.env`는 `.gitignore`에 들어 있어 GitHub에 올라가지 않습니다.
+키를 코드·채팅·문서에 붙여 넣지 마세요.
+
+### 가장 쉬운 방법: `setup` 명령
+
+프로젝트 맨 위 폴더(`README.md`가 있는 곳)에서 실행합니다.
+
+```bash
+python -m ytplan setup --only youtube   # YouTube 키만 넣기
+python -m ytplan setup                  # 네 가지 키를 차례로 (엔터만 누르면 건너뜀)
+python -m ytplan setup --check          # 저장된 키가 작동하는지만 확인
+```
+
+1. `입력(보이지 않음)>`이 나오면 복사해 둔 키를 붙여 넣고 엔터를 누릅니다.
+   **붙여 넣어도 화면에 글자가 안 보이는 게 정상입니다.** (Windows 터미널은 Ctrl+V 또는 마우스 오른쪽 클릭)
+2. `.env`가 없으면 `.env.example`을 바탕으로 만들고, 있으면 그 키 줄만 바꿉니다.
+3. 저장한 뒤 키마다 실제 API를 한 번 불러 확인합니다. (YouTube 1 유닛, 네이버 1회, Claude 무료 조회)
+   실패하면 이유를 알려 줍니다: 키 오타 / API 사용 설정 안 함 / 키 제한사항에 막힘 / 할당량 소진 등.
+
+```
+키 확인
+  [정상] YouTube: 정상
+  [건너뜀] 네이버 데이터랩: 설정 안 됨
+  [건너뜀] Claude: 설정 안 됨
+```
+
+### 직접 편집해도 됩니다
+
+`.env.example`을 복사해 `.env`로 이름을 바꾸고 메모장 등으로 `YOUTUBE_API_KEY=` 뒤에 키를 붙여 넣은 뒤 저장합니다.
+(따옴표·공백 없이 `YOUTUBE_API_KEY=AIza...` 한 줄)
 
 | 키 | 발급처 | 비용·한도 |
 |---|---|---|
@@ -102,6 +131,7 @@ ytplan/
   scoring.py          점수 모델
   planner.py          업로드 캘린더
   generate.py         Claude 기획안 생성
+  setup_keys.py       API 키 저장·확인 (setup)
   cli.py              명령줄 도구
 tests/                pytest 테스트 (네트워크 없이 실행)
 ```

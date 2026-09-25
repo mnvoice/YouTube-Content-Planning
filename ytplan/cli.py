@@ -1,5 +1,6 @@
 """명령줄 도구: python -m ytplan <명령> ...
 
+  setup     API 키를 .env에 저장하고 작동 확인
   bank      아이템 뱅크 보기
   expand    키워드 자동완성 확장 (사람들이 실제로 치는 검색어 모으기)
   research  YouTube·네이버 데이터랩·뉴스로 아이템 조사
@@ -45,6 +46,14 @@ def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     print(f"저장: {path}")
+
+
+def cmd_setup(args) -> None:
+    from . import setup_keys
+
+    ok = setup_keys.run(Path(args.env), only={args.only} if args.only else None, check_only=args.check)
+    if not ok:
+        sys.exit(1)
 
 
 def cmd_bank(args) -> None:
@@ -194,6 +203,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--bank", help="아이템 뱅크 CSV 경로 (기본: 내장 topic_bank.csv)")
     p.add_argument("--out", default="output", help="결과 저장 폴더 (기본: output)")
     sub = p.add_subparsers(dest="command", required=True)
+
+    s = sub.add_parser("setup", help="API 키를 .env에 저장하고 작동 확인")
+    s.add_argument("--only", choices=["youtube", "naver", "anthropic"], help="이 서비스의 키만 입력")
+    s.add_argument("--check", action="store_true", help="입력 없이 저장된 키가 작동하는지만 확인")
+    s.add_argument("--env", default=".env", help="키를 저장할 파일 (기본: 현재 폴더의 .env)")
+    s.set_defaults(func=cmd_setup)
 
     s = sub.add_parser("bank", help="아이템 뱅크 보기")
     s.add_argument("--pillar", help="콘텐츠 기둥으로 거르기 (예: 건강, 돈, 가족)")
