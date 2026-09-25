@@ -5,7 +5,7 @@
 즉, 작은 채널이 이 주제로 터졌다면 우리도 그 주제로 승부할 수 있다.
 
 - 공식 API: YouTube Data API v3 (API 키 필요, 무료 할당량 하루 10,000 유닛)
-  search.list 100 유닛 / videos.list·channels.list·commentThreads.list 각 1 유닛
+  search.list 100 유닛 / videos·channels·playlistItems·commentThreads.list 각 1 유닛
 - 자동완성: 키 없이 쓰는 비공식 엔드포인트. 과도하게 호출하지 말 것.
 """
 
@@ -107,6 +107,68 @@ def get_subscribers(api_key: str, channel_ids: list[str]) -> dict[str, int | Non
             hidden = stats.get("hiddenSubscriberCount", False)
             subs[item["id"]] = None if hidden else int(stats.get("subscriberCount", 0))
     return subs
+
+
+def _channel_record(item: dict) -> dict:
+    snip, stats = item.get("snippet", {}), item.get("statistics", {})
+    hidden = stats.get("hiddenSubscriberCount", False)
+    return {
+        "id": item["id"],
+        "title": snip.get("title", ""),
+        "handle": snip.get("customUrl", ""),
+        "subs": None if hidden else int(stats.get("subscriberCount", 0)),
+        "total_views": int(stats.get("viewCount", 0)),
+        "video_count": int(stats.get("videoCount", 0)),
+        "uploads": item.get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads", ""),
+        "url": f"https://www.youtube.com/channel/{item['id']}",
+    }
+
+
+def get_channel_info(api_key: str, channel_ids: list[str]) -> dict[str, dict]:
+    """채널 id → 이름·구독자·총조회수·업로드 재생목록."""
+    info: dict[str, dict] = {}
+    unique = list(dict.fromkeys(channel_ids))
+    for i in range(0, len(unique), 50):
+        data = net.get_json(
+            f"{API}/channels",
+            {"part": "snippet,statistics,contentDetails", "id": ",".join(unique[i : i + 50]), "key": api_key},
+        )
+        for item in data.get("items", []):
+            info[item["id"]] = _channel_record(item)
+    return info
+
+
+def resolve_channel(api_key: str, ref: str) -> dict | None:
+    """'@핸들', 채널 id(UC…), 채널 주소 중 무엇을 받아도 채널 정보로 바꾼다."""
+    ref = ref.strip()
+    m = re.search(r"youtube\.com/(?:channel/(UC[\w-]{22})|(@[^/?#]+))", ref)
+    if m:
+        ref = m.group(1) or m.group(2)
+    if re.fullmatch(r"UC[\w-]{22}", ref):
+        return get_channel_info(api_key, [ref]).get(ref)
+    handle = ref if ref.startswith("@") else f"@{ref}"
+    data = net.get_json(
+        f"{API}/channels",
+        {"part": "snippet,statistics,contentDetails", "forHandle": handle, "key": api_key},
+    )
+    items = data.get("items", [])
+    return _channel_record(items[0]) if items else None
+
+
+def uploads_video_ids(api_key: str, playlist_id: str, max_videos: int = 150) -> list[str]:
+    """채널 업로드 재생목록에서 최신 영상 id를 가져온다 (50개당 1 유닛)."""
+    ids: list[str] = []
+    page_token = None
+    while len(ids) < max_videos:
+        params = {"part": "contentDetails", "playlistId": playlist_id, "maxResults": 50, "key": api_key}
+        if page_token:
+            params["pageToken"] = page_token
+        data = net.get_json(f"{API}/playlistItems", params)
+        ids += [it["contentDetails"]["videoId"] for it in data.get("items", []) if it.get("contentDetails")]
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return ids[:max_videos]
 
 
 def _days_since(published_at: str) -> float:

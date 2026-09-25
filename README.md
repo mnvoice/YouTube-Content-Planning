@@ -11,10 +11,10 @@
 ## 도구가 하는 일
 
 ```
- topic_bank.csv          research                 rank / calendar           script
- (아이템 45개,     →   유튜브 아웃라이어·댓글   →   점수표와              →   Claude가 제목·썸네일·
-  엑셀로 편집)          네이버 데이터랩(40~50대)      업로드 일정               장면별 대본·이미지 프롬프트·
-                        최근 뉴스                                              사실 확인 목록 작성
+ benchmark / ideas            topic_bank.csv       research                 rank / calendar      script
+ 잘 되는 채널의 히트 영상  →  (아이템 45개+,  →   유튜브 아웃라이어·댓글  →  점수표와         →  Claude가 제목·썸네일·
+ 역기획해 새 아이템 추가       엑셀로 편집)        네이버 데이터랩(40~50대)    업로드 일정          장면별 대본·이미지 프롬프트·
+                                                   최근 뉴스                                        사실 확인 목록 작성
 ```
 
 | 명령 | 하는 일 | 필요한 키 |
@@ -22,6 +22,8 @@
 | `bank` | 아이템 뱅크 보기 | 없음 |
 | `expand "키워드"` | 유튜브 자동완성으로 연관 검색어 모으기 | 없음 |
 | `research` | 유튜브 인기·아웃라이어 영상, 사연·질문 댓글, 40~50대 검색량, 최근 뉴스 조사 | YouTube, 네이버 (없으면 뉴스만) |
+| `benchmark` | 조회수가 잘 나오는 채널을 찾아 '채널 평소 대비 몇 배 터졌는지'로 히트 영상·제목 구조 분석 | YouTube |
+| `ideas` | 벤치마크 히트 영상을 역기획해 새 아이템 제안, `--append`로 뱅크에 추가 | Anthropic (없으면 `--prompt-only`) |
 | `rank` | 점수 매겨 순위표 만들기 | 없음 (조사 결과가 있으면 반영) |
 | `calendar` | 기둥을 섞고 시즌을 맞춘 업로드 일정 | 없음 |
 | `script` | 영상 기획안(대본) 생성 | Anthropic (없으면 `--prompt-only`) |
@@ -58,6 +60,9 @@ python -m ytplan script --topic M03 --prompt-only  # claude.ai에 붙여 넣을 
 키를 넣은 뒤:
 
 ```bash
+python -m ytplan benchmark                 # 잘 되는 채널 15개 자동 발굴 → output/benchmark.md
+python -m ytplan benchmark --channel @핸들  # 아는 채널을 직접 추가
+python -m ytplan ideas --append            # 히트 영상 역기획 → 새 아이템을 뱅크에 추가
 python -m ytplan research --pillar 돈      # 돈·노후 기둥 전체 조사
 python -m ytplan research --topic M03,H02  # 특정 아이템만
 python -m ytplan rank                      # 이제 검색수요·아웃라이어가 반영됨
@@ -66,6 +71,7 @@ python -m ytplan script --topic M03        # output/scripts/M03.md
 
 - 조사 결과는 `research/<ID>.json`(원본)과 `output/research/<ID>.md`(읽기용)로 저장됩니다.
 - 같은 요청은 24시간 동안 `.cache/`에서 재사용해 할당량을 아낍니다.
+- `benchmark` 결과(`research/benchmark.json`)가 있으면 `script`가 관련 히트 영상과 잘 먹힌 제목 구조를 참고합니다.
 - 기획안은 Claude(`claude-opus-5`)로 만들고, 안전 분류기가 요청을 거절하면 서버가 권장 모델로 자동 재시도(`fallbacks: "default"`)하도록 켜 두었습니다.
 
 ## 아이템 추가·수정
@@ -91,6 +97,8 @@ ytplan/
   data/topic_bank.csv 아이템 뱅크
   sources/            youtube.py · naver.py · news.py
   research.py         조사 실행·저장
+  benchmark.py        잘 되는 채널 역기획 (히트 영상·제목 구조)
+  ideas.py            벤치마크 → Claude 새 아이템 제안
   scoring.py          점수 모델
   planner.py          업로드 캘린더
   generate.py         Claude 기획안 생성

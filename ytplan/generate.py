@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import json
+from typing import TypeVar
 
 import anthropic
 from pydantic import BaseModel
 
+from .benchmark import hits_for_topic
 from .topics import Topic
 
 MODEL = "claude-opus-5"
@@ -42,7 +44,18 @@ SYSTEM_PROMPT = """\
 - 화면 자막(on_screen_text)은 15자 이내의 핵심 단어로, 큰 글씨로 보여 줄 것을 전제로 쓴다.
 - visual_prompt는 이미지 생성 AI용 영어 프롬프트다. 실존 인물·유명인·브랜드·로고·글자를 넣지 않고, 한국 중년의 일상 장면을 따뜻한 일러스트 스타일로 일관되게 묘사한다.
 - 참고 영상 제목은 시청자 반응을 이해하는 용도로만 쓰고 그대로 베끼지 않는다.
+
+밋밋하지 않게 만드는 법
+- "안녕하세요, 오늘은 ~에 대해 알아보겠습니다"로 시작하지 않는다. 첫 문장은 구체적인 장면, 의외의 숫자, 흔한 오해 중 하나로 연다.
+- 정보를 나열하지 말고 긴장을 만든다: 흔한 오해 → 사실, 두 선택지의 손익 비교, "월 소득 얼마인 부부라면"처럼 숫자로 따져 보는 시뮬레이션.
+- 2~3분마다 다음 내용을 예고해 끝까지 보게 한다. ("그런데 여기서 많은 분들이 놓치는 게 하나 있습니다.")
+- titles 5개는 서로 다른 구조로 쓴다: 숫자·이익형, 속마음 인용형, 후회·실수형, 질문·반전형, 대상 지정형("~하신 분").
+  벤치마크 자료가 있으면 히트 제목에 많이 쓰인 구조를 우선한다. 궁금하게 만들되 공포 조장·과장은 하지 않는다.
+- 썸네일 문구는 제목을 반복하지 말고 제목이 못 다 한 감정이나 숫자 하나를 던진다.
 """
+
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class Scene(BaseModel):
@@ -89,8 +102,29 @@ def _research_context(research: dict, max_items: int = 8) -> str:
     return "\n\n".join(parts)
 
 
-def build_prompt(topic: Topic, research: dict | None = None, minutes: int = 10) -> str:
-    context = _research_context(research or {})
+def _benchmark_context(topic: Topic, benchmark: dict, max_items: int = 8) -> str:
+    hits = hits_for_topic(benchmark, topic, max_items)
+    label = "이 주제와 관련해 비슷한 시청자층 채널에서 터진 영상"
+    if not hits:
+        hits = benchmark.get("hits", [])[:5]
+        label = "비슷한 시청자층 채널에서 터진 영상 (주제는 다르지만 제목·구성 참고)"
+    parts = []
+    if hits:
+        lines = [f"- {v['title']} (채널 평소 대비 {v['channel_multiple']}배, 조회수 {v['views']:,})" for v in hits]
+        parts.append(f"{label}:\n" + "\n".join(lines))
+    patterns = [p for p in benchmark.get("patterns", []) if (p.get("lift") or 0) > 1 and p["hit_share"] >= 0.1][:5]
+    if patterns:
+        lines = [f"- {p['pattern']}: 히트 제목의 {p['hit_share'] * 100:.0f}% (평소의 {p['lift']}배)" for p in patterns]
+        parts.append("히트 제목에 많이 쓰인 구조:\n" + "\n".join(lines))
+    return "\n\n".join(parts)
+
+
+def build_prompt(
+    topic: Topic, research: dict | None = None, minutes: int = 10, benchmark: dict | None = None
+) -> str:
+    context = "\n\n".join(
+        c for c in (_research_context(research or {}), _benchmark_context(topic, benchmark or {})) if c
+    )
     prompt = f"""\
 다음 아이템으로 약 {minutes}분짜리 롱폼 영상 기획안을 만들어 주세요.
 
@@ -115,12 +149,8 @@ YMYL 위험도: {topic.risk}
     return prompt
 
 
-def generate_plan(
-    topic: Topic,
-    research: dict | None = None,
-    minutes: int = 10,
-    client: anthropic.Anthropic | None = None,
-) -> VideoPlan:
+def call_structured(system: str, prompt: str, output_format: type[T], client: anthropic.Anthropic | None = None) -> T:
+    """Claude를 호출해 output_format(Pydantic 모델) 형식의 결과를 받는다."""
     client = client or anthropic.Anthropic()
     with client.beta.messages.stream(
         model=MODEL,
@@ -130,19 +160,29 @@ def generate_plan(
         fallbacks="default",
         thinking={"type": "adaptive"},
         output_config={"effort": "high"},
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": build_prompt(topic, research, minutes)}],
-        output_format=VideoPlan,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+        output_format=output_format,
     ) as stream:
         message = stream.get_final_message()
 
     if message.stop_reason == "refusal":
         raise RuntimeError("모델이 이 요청을 거절했습니다. 주제 표현을 바꿔 다시 시도해 보세요.")
     if message.stop_reason == "max_tokens":
-        raise RuntimeError("출력이 길이 제한에 걸려 잘렸습니다. --minutes 값을 줄여 보세요.")
+        raise RuntimeError("출력이 길이 제한에 걸려 잘렸습니다. 요청 분량을 줄여 보세요.")
     if message.parsed_output is None:
-        raise RuntimeError("응답을 기획안 형식으로 해석하지 못했습니다.")
+        raise RuntimeError("응답을 정해진 형식으로 해석하지 못했습니다.")
     return message.parsed_output
+
+
+def generate_plan(
+    topic: Topic,
+    research: dict | None = None,
+    minutes: int = 10,
+    client: anthropic.Anthropic | None = None,
+    benchmark: dict | None = None,
+) -> VideoPlan:
+    return call_structured(SYSTEM_PROMPT, build_prompt(topic, research, minutes, benchmark), VideoPlan, client)
 
 
 PRE_UPLOAD_CHECKLIST = [

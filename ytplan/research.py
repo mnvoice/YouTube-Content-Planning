@@ -31,6 +31,18 @@ def load_all(topics: list[Topic]) -> dict[str, dict]:
     return {t.id: load(t.id) for t in topics}
 
 
+def load_benchmark() -> dict:
+    path = research_dir() / "benchmark.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def save_benchmark(data: dict) -> Path:
+    path = research_dir() / "benchmark.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
 def save(topic_id: str, data: dict) -> Path:
     path = research_dir() / f"{topic_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
