@@ -36,6 +36,10 @@ VIDEOS = {
 }
 SEARCH = {"50대 건강": ["a1", "b1", "k1", "s1"], "노후 준비": ["a2", "b2"]}
 UPLOADS = {"UUa": ["a1", "a2", "a3", "a4", "a5", "a6"], "UUb": ["b1", "b2", "b3"]}
+COMMENTS = {
+    "b1": ["저도 52살인데 남편이 퇴직하고 똑같아요", "우리 엄마 얘기 같네요", "제 나이 마흔여덟, 공감합니다"],
+    "a1": ["저는 60대인데 조기수령 후회합니다", "오십견 때문에 병원 다녀요"],
+}
 
 
 def _channel_item(cid):
@@ -71,6 +75,10 @@ def fake_get_json(url, params=None, headers=None, ttl=0):
         else:
             ids = params["id"].split(",")
         return {"items": [_channel_item(cid) for cid in ids if cid in CHANNELS]}
+    if url.endswith("/commentThreads"):
+        texts = COMMENTS.get(params["videoId"], [])
+        return {"items": [{"snippet": {"topLevelComment": {"snippet": {"textDisplay": t, "likeCount": 1}},
+                                        "totalReplyCount": 0}} for t in texts]}
     if url.endswith("/playlistItems"):
         vids = UPLOADS[params["playlistId"]]
         # 2개씩 페이지를 나눠 페이지 넘김을 흉내 낸다
@@ -112,22 +120,35 @@ def test_uploads_pagination(fake_api):
 
 
 def test_discover_skips_broadcasters_and_small_channels(fake_api):
-    chans = benchmark.discover_channels("KEY", ["50대 건강", "노후 준비"], log=lambda m: None)
+    d = benchmark.discover_channels("KEY", ["50대 건강", "노후 준비"], log=lambda m: None)
+    chans = d["channels"]
     assert [c["id"] for c in chans] == [UC_B, UC_A]  # 두 시드 모두 걸리고, 조회수 합이 큰 순서
     assert chans[0]["seeds"] == ["50대 건강", "노후 준비"]
+    reasons = {e["title"]: e["reason"] for e in d["excluded"]}
+    assert reasons == {"KBS 건강": "방송사·뉴스 채널", "작은 채널": "구독자 10,000명 미만"}
+    assert [x["status"] for x in d["seeds"]] == ["성공", "성공"]
     with_kbs = benchmark.discover_channels("KEY", ["50대 건강"], include_broadcasters=True, log=lambda m: None)
-    assert UC_KBS in [c["id"] for c in with_kbs]
+    assert UC_KBS in [c["id"] for c in with_kbs["channels"]]
 
 
 def test_analyze_channel_multiples(fake_api):
     ch = youtube.resolve_channel("KEY", "@healthy50")
-    result = benchmark.analyze_channel("KEY", ch, now=NOW)
+    result = benchmark.analyze_channel("KEY", ch, now=NOW, min_baseline=3)
     by_id = {v["id"]: v for v in result["videos"]}
     assert result["channel"]["median_views_long"] == 15_000  # 공개 14일 미만 a6 제외, 롱폼 중앙값
     assert by_id["a1"]["channel_multiple"] == pytest.approx(6.67)
-    assert by_id["a5"]["channel_multiple"] == 1.0  # 쇼츠는 쇼츠끼리 비교
-    assert by_id["a6"]["channel_multiple"] is None
+    assert by_id["a5"]["channel_multiple"] is None  # 쇼츠는 1개뿐이라 기준 미달 → 비교 제외
+    assert by_id["a6"]["channel_multiple"] is None and by_id["a6"]["mature"] is False
+    assert result["channel"]["status"] == "성공" and "쇼츠 1개로 기준 미달" in result["channel"]["note"]
     assert result["channel"]["shorts_share"] == pytest.approx(0.17)
+
+
+def test_analyze_channel_on_hold_when_too_few_videos(fake_api):
+    ch = youtube.resolve_channel("KEY", "@life2")
+    result = benchmark.analyze_channel("KEY", ch, now=NOW)  # 기본 기준 10개, 롱폼 3개뿐
+    assert result["channel"]["status"] == "보류"
+    assert "롱폼 3개" in result["channel"]["note"]
+    assert all(v["channel_multiple"] is None for v in result["videos"])
 
 
 def test_tokenize_strips_josa():
@@ -156,13 +177,23 @@ def test_map_to_bank(topics):
 
 
 def test_run_end_to_end_and_report(fake_api, topics):
-    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], channel_refs=["@nobody"], log=lambda m: None)
+    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], channel_refs=["@nobody"],
+                         min_baseline=3, log=lambda m: None, now=NOW)
     assert {c["title"] for c in data["channels"]} == {"건강한 오십", "인생 2막 이야기"}
     hit_titles = [v["title"] for v in data["hits"]]
     assert "\"퇴직한 남편이 달라졌어요\" 아내의 눈물" in hit_titles and "50대 국민연금 조기수령 후회하는 3가지 이유" in hit_titles
     assert "방금 올린 영상" not in hit_titles
+    col = data["collection"]
+    assert col["counts"] == {"전체": 3, "성공": 2, "보류": 0, "실패": 1, "미실행": 0}
+    assert {r["ref"]: r["reason"] for r in col["channels"] if r["status"] == "실패"} == {"@nobody": "채널을 찾지 못함"}
+    assert data["meta"]["complete"] and data["meta"]["params"]["seeds"] == ["50대 건강", "노후 준비"]
+    assert len(data["videos"]) == 9 and {"mature", "channel_multiple"} <= set(data["videos"][0])
+    ev = data["age_evidence"]
+    assert ev["videos_checked"] == 2 and ev["self_age_mentions"] == {"40대": 1, "50대": 1, "60대": 1}
+    assert ev["share_40_50_among_self_age"] == pytest.approx(0.67)
     md = report.benchmark_markdown(data)
-    assert "건강한 오십" in md and "뱅크에 없는 히트 주제" in md and "퇴직한 남편이 달라졌어요" in md
+    assert "전체 3 · 성공 2 · 보류 0 · 실패 1 · 미실행 0" in md
+    assert "건강한 오십" in md and "뱅크에 없는 히트 주제" in md and "[간접 근거]" in md
 
 
 def test_estimate_quota():
@@ -267,17 +298,67 @@ def test_run_skips_broken_channel(monkeypatch, topics):
 
     monkeypatch.setattr(net, "get_json", flaky)
     logs = []
-    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], log=logs.append)
+    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], min_baseline=3, log=logs.append, now=NOW)
     assert [c["title"] for c in data["channels"]] == ["건강한 오십"]
     assert any("분석 실패, 건너뜀" in line for line in logs)
+    failed = [r for r in data["collection"]["channels"] if r["status"] == "실패"]
+    assert failed[0]["title"] == "인생 2막 이야기" and "playlistNotFound" in failed[0]["reason"]
+    impact = data["collection"]["impact"]
+    assert impact["missing_channels"] == ["인생 2막 이야기 (실패)"]
+    assert impact["missing_discovery_views_share"] == pytest.approx(330_000 / 450_000, abs=0.001)
 
 
-def test_run_stops_on_quota_exceeded(monkeypatch, topics):
+def test_run_saves_partial_result_on_quota(monkeypatch, topics):
     def quota(url, params=None, headers=None, ttl=0):
-        if url.endswith("/playlistItems"):
+        if url.endswith("/playlistItems") and params["playlistId"] == "UUb":
             raise RuntimeError('GET playlistItems 실패 (403): {"reason": "quotaExceeded"}')
         return fake_get_json(url, params, headers, ttl)
 
     monkeypatch.setattr(net, "get_json", quota)
-    with pytest.raises(RuntimeError, match="quotaExceeded"):
-        benchmark.run("KEY", topics, seeds=["50대 건강"], log=lambda m: None)
+    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], min_baseline=3, log=lambda m: None, now=NOW)
+    assert data["meta"]["complete"] is False and "할당량" in data["meta"]["stop_reason"]
+    statuses = {r["title"]: r["status"] for r in data["collection"]["channels"]}
+    assert statuses == {"인생 2막 이야기": "실패", "건강한 오십": "미실행"}
+    assert data["age_evidence"]["videos_checked"] == 0  # 할당량이 없으니 댓글 확인도 하지 않음
+
+
+def test_run_saves_partial_result_when_seed_search_hits_quota(monkeypatch, topics):
+    def quota(url, params=None, headers=None, ttl=0):
+        if url.endswith("/search") and params["q"] == "노후 준비":
+            raise RuntimeError('GET search 실패 (403): {"reason": "quotaExceeded"}')
+        return fake_get_json(url, params, headers, ttl)
+
+    monkeypatch.setattr(net, "get_json", quota)
+    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비", "갱년기"], log=lambda m: None, now=NOW)
+    assert not data["meta"]["complete"]
+    assert [x["status"] for x in data["collection"]["seeds"]] == ["성공", "실패", "미실행"]
+
+
+@pytest.mark.parametrize(
+    "text, decades",
+    [
+        ("저도 52살인데 공감해요", [50]),
+        ("오십견 때문에 고생 중", []),
+        ("4050세대 필수 시청", []),
+        ("마흔 넘어서 알게 됐어요", [40]),
+        ("좀 쉰다고 생각하세요", []),
+        ("30대 딸이 보라고 해서", [30]),
+        ("60세 넘으신 어머니", [60]),
+    ],
+)
+def test_age_decades(text, decades):
+    assert benchmark.age_decades(text) == decades
+
+
+def test_age_evidence_separates_self_mentions():
+    ev = benchmark.age_evidence([{"text": "저도 50대예요"}, {"text": "우리 엄마가 70대신데"}, {"text": "퇴직하고 나니"}])
+    assert ev["age_mentions"] == {"50대": 1, "70대": 1}
+    assert ev["self_age_mentions"] == {"50대": 1}
+    assert ev["life_stage_mentions"] == 1
+
+
+def test_quota_used_counts_only_network_youtube_calls():
+    from collections import Counter
+
+    calls = Counter({"network:search": 2, "network:videos": 3, "cache:search": 5, "network:search?q": 0, "network:rss": 4})
+    assert benchmark.quota_used(calls) == 2 * 100 + 3

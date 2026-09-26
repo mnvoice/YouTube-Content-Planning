@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,32 @@ USER_AGENT = "ytplan/0.1 (+https://github.com/mnvoice/YouTube-Content-Planning)"
 DEFAULT_TTL = 24 * 3600
 # 캐시 키에서 제외할 파라미터 (API 키가 바뀌어도 같은 요청으로 취급)
 _SECRET_PARAMS = {"key"}
+_SECRET_HEADERS = {"X-Naver-Client-Id", "X-Naver-Client-Secret", "x-api-key", "Authorization"}
+# 값을 몰라도 모양으로 알아볼 수 있는 키 (Google API 키, Anthropic 키)
+_KEY_PATTERNS = (re.compile(r"AIza[0-9A-Za-z_\-]{35}"), re.compile(r"sk-ant-[0-9A-Za-z_\-]{10,}"))
+
+# 호출 기록: "network:search", "cache:videos" 처럼 출처와 엔드포인트별 횟수
+calls: Counter = Counter()
+
+
+def redact(text: str, secrets: list[str] | tuple[str, ...] = ()) -> str:
+    """오류 메시지 등에 섞여 들어간 API 키를 가린다."""
+    for secret in secrets:
+        if secret and len(secret) >= 6:
+            text = text.replace(secret, "***")
+    for pattern in _KEY_PATTERNS:
+        text = pattern.sub("***", text)
+    return text
+
+
+def _secrets(params: dict | None, headers: dict | None) -> list[str]:
+    values = [str(v) for k, v in (params or {}).items() if k in _SECRET_PARAMS]
+    values += [str(v) for k, v in (headers or {}).items() if k in _SECRET_HEADERS]
+    return values
+
+
+def _endpoint(url: str) -> str:
+    return url.rstrip("/").rsplit("/", 1)[-1]
 
 
 def _cache_dir() -> Path:
@@ -57,17 +85,24 @@ def _request(
     path = _cache_path(method, url, params, body)
     cached = _read_cache(path, ttl)
     if cached is not None:
+        calls[f"cache:{_endpoint(url)}"] += 1
         return cached
-    resp = requests.request(
-        method,
-        url,
-        params=params,
-        headers={"User-Agent": USER_AGENT, **(headers or {})},
-        json=body,
-        timeout=20,
-    )
+    calls[f"network:{_endpoint(url)}"] += 1
+    secrets = _secrets(params, headers)
+    try:
+        resp = requests.request(
+            method,
+            url,
+            params=params,
+            headers={"User-Agent": USER_AGENT, **(headers or {})},
+            json=body,
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        # requests 오류 메시지에는 키가 든 전체 주소가 찍히므로 가리고, 원래 예외도 끊는다
+        raise OSError(redact(f"{method} {url} 연결 실패: {e}", secrets)) from None
     if resp.status_code >= 400:
-        raise RuntimeError(f"{method} {url} 실패 ({resp.status_code}): {resp.text[:300]}")
+        raise RuntimeError(redact(f"{method} {url} 실패 ({resp.status_code}): {resp.text[:300]}", secrets))
     resp.encoding = resp.encoding or "utf-8"
     text = resp.text
     if ttl > 0:

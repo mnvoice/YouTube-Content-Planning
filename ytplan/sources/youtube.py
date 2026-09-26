@@ -217,8 +217,10 @@ def fetch_comments(api_key: str, video_id: str, max_results: int = 100) -> list[
                 "key": api_key,
             },
         )
-    except RuntimeError:
-        return []
+    except RuntimeError as e:
+        if "quotaExceeded" in str(e):
+            raise  # 할당량 소진은 호출한 쪽에서 수집을 멈추게 한다
+        return []  # 댓글이 막힌 영상
     comments = []
     for item in data.get("items", []):
         snip = item.get("snippet", {})

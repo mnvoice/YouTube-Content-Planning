@@ -4,7 +4,8 @@
   bank      아이템 뱅크 보기
   expand    키워드 자동완성 확장 (사람들이 실제로 치는 검색어 모으기)
   research  YouTube·네이버 데이터랩·뉴스로 아이템 조사
-  benchmark 조회수가 잘 나오는 채널을 찾아 히트 영상·제목 패턴 분석
+  benchmark 조회수가 잘 나오는 채널을 찾아 히트 영상·제목 패턴 분석 (새 실행 폴더에 저장)
+  verify-run 벤치마크 실행 폴더 검증
   ideas     벤치마크 결과로 Claude가 새 아이템 제안 (뱅크에 추가 가능)
   rank      점수 매겨 순위표 만들기
   calendar  업로드 캘린더 만들기
@@ -14,8 +15,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from . import benchmark, config, research, report
@@ -51,7 +53,7 @@ def _write(path: Path, text: str) -> None:
 def cmd_setup(args) -> None:
     from . import setup_keys
 
-    ok = setup_keys.run(Path(args.env), only={args.only} if args.only else None, check_only=args.check)
+    ok = setup_keys.run(Path(args.env or args.env_file), only={args.only} if args.only else None, check_only=args.check)
     if not ok:
         sys.exit(1)
 
@@ -92,38 +94,89 @@ def cmd_research(args) -> None:
         _write(Path(args.out) / "research" / f"{t.id}.md", report.research_markdown(t.id, t.title, results[t.id]))
 
 
+def _new_run_dir(args) -> Path:
+    run_dir = Path(args.run_dir) if args.run_dir else Path(args.out) / f"benchmark_{datetime.now():%Y%m%d-%H%M%S}"
+    if run_dir.exists():
+        raise ValueError(f"이미 있는 폴더에는 쓰지 않습니다 (기존 결과 보존): {run_dir}")
+    run_dir.mkdir(parents=True)
+    return run_dir
+
+
 def cmd_benchmark(args) -> None:
     api_key = config.get("YOUTUBE_API_KEY")
     if not api_key:
-        print("YOUTUBE_API_KEY가 필요합니다. .env에 넣어 주세요.", file=sys.stderr)
+        print(f"YOUTUBE_API_KEY가 필요합니다. {args.env_file}에 넣어 주세요.", file=sys.stderr)
         sys.exit(1)
     seeds = [s.strip() for s in args.seeds.split(",") if s.strip()] if args.seeds else list(benchmark.DEFAULT_SEEDS)
     discover = not args.no_discover
     n_channels = (args.top if discover else 0) + len(args.channel or [])
-    quota = benchmark.estimate_quota(len(seeds) if discover else 0, n_channels, args.videos)
-    print(f"예상 YouTube 할당량: 약 {quota:,} 유닛 (하루 기본 10,000)")
-    data = benchmark.run(
-        api_key,
-        load_topics(args.bank),
-        seeds=seeds,
-        channel_refs=args.channel,
-        discover=discover,
-        top=args.top,
-        days=args.days,
-        min_subs=args.min_subs,
-        max_videos=args.videos,
-        include_broadcasters=args.include_broadcasters,
-    )
-    print(f"저장: {research.save_benchmark(data)}")
-    _write(Path(args.out) / "benchmark.md", report.benchmark_markdown(data))
-    for v in data["hits"][:10]:
-        print(f"  {v['channel_multiple']:>5}x {v['views']:>10,}회  {v['title'][:50]}  ({v['channel']})")
+    quota = benchmark.estimate_quota(len(seeds) if discover else 0, n_channels, args.videos) + args.age_hits
+    run_dir = _new_run_dir(args)
+    log_lines: list[str] = []
+
+    def log(message: str) -> None:
+        print(message)
+        log_lines.append(message)
+
+    log(f"실행 폴더: {run_dir}")
+    log(f"예상 YouTube 할당량: 약 {quota:,} 유닛 (하루 기본 10,000)")
+    try:
+        data = benchmark.run(
+            api_key,
+            load_topics(args.bank),
+            seeds=seeds,
+            channel_refs=args.channel,
+            discover=discover,
+            top=args.top,
+            days=args.days,
+            min_subs=args.min_subs,
+            max_videos=args.videos,
+            include_broadcasters=args.include_broadcasters,
+            min_baseline=args.min_baseline,
+            age_hits=args.age_hits,
+            log=log,
+        )
+        (run_dir / "benchmark.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        (run_dir / "benchmark.md").write_text(report.benchmark_markdown(data), encoding="utf-8")
+        report.channels_csv(data, run_dir / "channels.csv")
+        counts = data["collection"]["counts"]
+        log("수집 결과: " + " · ".join(f"{k} {v}" for k, v in counts.items()))
+        if not data["meta"]["complete"]:
+            log(f"주의: 중간에 멈췄습니다 ({data['meta']['stop_reason']}). 부분 결과만 저장했습니다.")
+        for v in data["hits"][:10]:
+            log(f"  {v['channel_multiple']:>5}x {v['views']:>10,}회  {v['title'][:50]}  ({v['channel']})")
+        log(f"저장: {run_dir}/benchmark.json, benchmark.md, channels.csv, run.log")
+        log(f"검증: python -m ytplan verify-run {run_dir}")
+    finally:
+        (run_dir / "run.log").write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+
+
+def cmd_verify_run(args) -> None:
+    from . import verify
+
+    run_dir = Path(args.run_dir)
+    checks = verify.verify_run(run_dir, args.expect_commit)
+    for c in checks:
+        print(f"[{'통과' if c.ok else '실패'}] {c.name}: {c.detail}")
+    print(f"저장: {verify.write_report(run_dir, checks)}")
+    if not all(c.ok for c in checks):
+        sys.exit(1)
+
+
+def _load_benchmark(args) -> dict:
+    """--benchmark로 준 파일, 없으면 --out 안의 가장 최근 실행 폴더, 그것도 없으면 research/benchmark.json."""
+    if args.benchmark:
+        return json.loads(Path(args.benchmark).read_text(encoding="utf-8"))
+    runs = sorted(Path(args.out).glob("benchmark_*/benchmark.json"))
+    if runs:
+        return json.loads(runs[-1].read_text(encoding="utf-8"))
+    return research.load_benchmark()
 
 
 def cmd_ideas(args) -> None:
     from . import ideas  # anthropic SDK는 이 명령에서만 필요
 
-    data = research.load_benchmark()
+    data = _load_benchmark(args)
     if not data.get("hits"):
         print("벤치마크 결과가 없습니다. 먼저 `python -m ytplan benchmark`를 실행하세요.", file=sys.stderr)
         sys.exit(1)
@@ -181,7 +234,7 @@ def cmd_script(args) -> None:
 
     topic = select(load_topics(args.bank), _ids(args.topic))[0]
     data = research.load(topic.id)
-    bench = research.load_benchmark()
+    bench = _load_benchmark(args)
     out = Path(args.out) / "scripts"
     if args.prompt_only:
         prompt = generate.build_prompt(topic, data, args.minutes, bench)
@@ -202,12 +255,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ytplan", description="40~50대 정보·공감형 유튜브 기획 도구")
     p.add_argument("--bank", help="아이템 뱅크 CSV 경로 (기본: 내장 topic_bank.csv)")
     p.add_argument("--out", default="output", help="결과 저장 폴더 (기본: output)")
+    p.add_argument("--env-file", default=".env", help="API 키를 읽을 .env 경로 (기본: 현재 폴더의 .env, 읽기만 함)")
     sub = p.add_subparsers(dest="command", required=True)
 
     s = sub.add_parser("setup", help="API 키를 .env에 저장하고 작동 확인")
     s.add_argument("--only", choices=["youtube", "naver", "anthropic"], help="이 서비스의 키만 입력")
     s.add_argument("--check", action="store_true", help="입력 없이 저장된 키가 작동하는지만 확인")
-    s.add_argument("--env", default=".env", help="키를 저장할 파일 (기본: 현재 폴더의 .env)")
+    s.add_argument("--env", help="키를 저장할 파일 (기본: --env-file 값, 보통 현재 폴더의 .env)")
     s.set_defaults(func=cmd_setup)
 
     s = sub.add_parser("bank", help="아이템 뱅크 보기")
@@ -236,10 +290,21 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-subs", type=int, default=10_000, help="이보다 구독자가 적은 채널은 제외")
     s.add_argument("--videos", type=int, default=150, help="채널당 분석할 최신 영상 수")
     s.add_argument("--include-broadcasters", action="store_true", help="방송사·뉴스 채널도 포함")
+    s.add_argument("--min-baseline", type=int, default=benchmark.MIN_BASELINE,
+                   help="평소 조회수 기준을 잡을 최소 영상 수 (형식별)")
+    s.add_argument("--age-hits", type=int, default=benchmark.AGE_EVIDENCE_HITS,
+                   help="댓글 나이 언급을 확인할 히트 영상 수 (영상당 1 유닛, 0이면 생략)")
+    s.add_argument("--run-dir", help="결과를 쓸 새 폴더 (기본: <out>/benchmark_날짜-시간). 이미 있으면 거부")
     s.set_defaults(func=cmd_benchmark)
+
+    s = sub.add_parser("verify-run", help="벤치마크 실행 폴더 검증 (재계산·건수·키 노출)")
+    s.add_argument("run_dir", help="benchmark가 만든 실행 폴더")
+    s.add_argument("--expect-commit", help="실행에 써야 했던 커밋 해시 (앞부분만 적어도 됨)")
+    s.set_defaults(func=cmd_verify_run)
 
     s = sub.add_parser("ideas", help="벤치마크 결과로 새 아이템 제안 (Claude)")
     s.add_argument("--count", type=int, default=15, help="제안받을 아이템 수")
+    s.add_argument("--benchmark", help="사용할 benchmark.json (기본: 가장 최근 실행 폴더)")
     s.add_argument("--append", action="store_true", help="결과를 아이템 뱅크 CSV에 바로 추가")
     s.add_argument("--prompt-only", action="store_true", help="API 호출 없이 프롬프트만 저장 (claude.ai에 붙여 넣기용)")
     s.set_defaults(func=cmd_ideas)
@@ -259,14 +324,15 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("script", help="Claude로 영상 기획안 만들기")
     s.add_argument("--topic", required=True, help="아이템 id (예: M03)")
     s.add_argument("--minutes", type=int, default=10, help="영상 길이(분)")
+    s.add_argument("--benchmark", help="참고할 benchmark.json (기본: 가장 최근 실행 폴더)")
     s.add_argument("--prompt-only", action="store_true", help="API 호출 없이 프롬프트만 저장 (claude.ai에 붙여 넣기용)")
     s.set_defaults(func=cmd_script)
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
-    config.load_dotenv()
     args = build_parser().parse_args(argv)
+    config.load_dotenv(args.env_file)
     try:
         args.func(args)
     except (KeyError, ValueError) as e:

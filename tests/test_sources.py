@@ -186,3 +186,35 @@ def test_net_raises_on_http_error(monkeypatch, tmp_path):
     monkeypatch.setattr(net.requests, "request", lambda *a, **k: Resp())
     with pytest.raises(RuntimeError, match="403"):
         net.get_json("https://x")
+
+
+def test_network_errors_do_not_leak_api_key(monkeypatch, tmp_path):
+    import requests
+
+    monkeypatch.setenv("YTPLAN_CACHE", str(tmp_path))
+    key = "AIza" + "S" * 35
+
+    def boom(method, url, params=None, **k):
+        raise requests.ConnectionError(f"Max retries exceeded with url: /youtube/v3/search?q=x&key={params['key']}")
+
+    monkeypatch.setattr(net.requests, "request", boom)
+    with pytest.raises(OSError) as info:
+        net.get_json("https://www.googleapis.com/youtube/v3/search", {"q": "x", "key": key})
+    assert key not in str(info.value) and "***" in str(info.value)
+    assert info.value.__cause__ is None and info.value.__suppress_context__  # 원래 예외(키 포함)를 끊는다
+
+
+def test_http_error_body_is_redacted_and_calls_counted(monkeypatch, tmp_path):
+    monkeypatch.setenv("YTPLAN_CACHE", str(tmp_path))
+    net.calls.clear()
+
+    class Resp:
+        status_code = 400
+        encoding = "utf-8"
+        text = "bad key AIza" + "Q" * 35
+
+    monkeypatch.setattr(net.requests, "request", lambda *a, **k: Resp())
+    with pytest.raises(RuntimeError) as info:
+        net.get_json("https://x/youtube/v3/videos", {"key": "whatever123"})
+    assert "AIza" not in str(info.value)
+    assert net.calls["network:videos"] == 1
