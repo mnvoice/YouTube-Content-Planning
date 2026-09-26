@@ -257,3 +257,27 @@ def test_ideas_prompt_and_generation(topics):
     assert captured["output_format"] is ideas.IdeaReport and captured["system"] == ideas.SYSTEM_PROMPT
     md = ideas.render_markdown(result, ideas.to_bank_rows(result, topics))
     assert "### F10 [가족] 퇴직한 남편과 24시간" in md
+
+
+def test_run_skips_broken_channel(monkeypatch, topics):
+    def flaky(url, params=None, headers=None, ttl=0):
+        if url.endswith("/playlistItems") and params["playlistId"] == "UUb":
+            raise RuntimeError("GET playlistItems 실패 (404): playlistNotFound")
+        return fake_get_json(url, params, headers, ttl)
+
+    monkeypatch.setattr(net, "get_json", flaky)
+    logs = []
+    data = benchmark.run("KEY", topics, seeds=["50대 건강", "노후 준비"], log=logs.append)
+    assert [c["title"] for c in data["channels"]] == ["건강한 오십"]
+    assert any("분석 실패, 건너뜀" in line for line in logs)
+
+
+def test_run_stops_on_quota_exceeded(monkeypatch, topics):
+    def quota(url, params=None, headers=None, ttl=0):
+        if url.endswith("/playlistItems"):
+            raise RuntimeError('GET playlistItems 실패 (403): {"reason": "quotaExceeded"}')
+        return fake_get_json(url, params, headers, ttl)
+
+    monkeypatch.setattr(net, "get_json", quota)
+    with pytest.raises(RuntimeError, match="quotaExceeded"):
+        benchmark.run("KEY", topics, seeds=["50대 건강"], log=lambda m: None)

@@ -238,7 +238,11 @@ def run(
 ) -> dict:
     channels: dict[str, dict] = {}
     for ref in channel_refs or []:
-        ch = youtube.resolve_channel(api_key, ref)
+        try:
+            ch = youtube.resolve_channel(api_key, ref)
+        except RuntimeError as e:
+            log(f"  ! 채널 조회 실패: {ref} ({str(e)[:120]})")
+            continue
         if ch:
             channels[ch["id"]] = {**ch, "seeds": ["직접 지정"], "matched_views": 0, "matched_videos": 0}
             log(f"  지정 채널: {ch['title']}")
@@ -254,7 +258,17 @@ def run(
     summaries, videos = [], []
     for ch in channels.values():
         log(f"  {ch['title']}")
-        result = analyze_channel(api_key, ch, max_videos=max_videos)
+        if not ch.get("uploads"):
+            log("    ! 업로드 목록이 없어 건너뜀")
+            continue
+        try:
+            result = analyze_channel(api_key, ch, max_videos=max_videos)
+        except RuntimeError as e:
+            # 한 채널이 막혀도 나머지 분석은 계속한다 (할당량 소진은 다음 채널도 실패하므로 중단)
+            if "quotaExceeded" in str(e):
+                raise
+            log(f"    ! 분석 실패, 건너뜀 ({str(e)[:120]})")
+            continue
         summaries.append(result["channel"])
         videos += result["videos"]
 
