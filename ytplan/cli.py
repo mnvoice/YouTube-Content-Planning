@@ -10,17 +10,19 @@
   rank      점수 매겨 순위표 만들기
   calendar  업로드 캘린더 만들기
   script    Claude로 영상 기획안(대본) 만들기
+  feedback  독자 채점 장부: 에이전트 예측과 독자 결과를 따로 적고 비교
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from . import benchmark, config, research, report
+from . import benchmark, config, feedback, research, report
 from .planner import WEEKDAYS_KO, build_calendar
 from .scoring import score_all
 from .sources import youtube
@@ -235,9 +237,12 @@ def cmd_script(args) -> None:
     topic = select(load_topics(args.bank), _ids(args.topic))[0]
     data = research.load(topic.id)
     bench = _load_benchmark(args)
+    lessons = feedback.lessons(feedback.load_all(Path(args.ledger)))
+    if lessons:
+        print("독자 실험에서 확인된 표현 유형을 프롬프트에 반영합니다.")
     out = Path(args.out) / "scripts"
     if args.prompt_only:
-        prompt = generate.build_prompt(topic, data, args.minutes, bench)
+        prompt = generate.build_prompt(topic, data, args.minutes, bench, lessons)
         text = (
             "아래 두 블록을 claude.ai 대화창에 차례로 붙여 넣으세요.\n\n"
             "## 1. 지침\n\n" + generate.SYSTEM_PROMPT + "\n## 2. 요청\n\n" + prompt
@@ -246,9 +251,90 @@ def cmd_script(args) -> None:
         return
     _require_anthropic_key()
     print(f"{topic.id} '{topic.title}' 기획안 생성 중... (1~3분 걸릴 수 있습니다)")
-    plan = generate.generate_plan(topic, data, args.minutes, benchmark=bench)
+    plan = generate.generate_plan(topic, data, args.minutes, benchmark=bench, lessons=lessons)
     _write(out / f"{topic.id}.md", generate.render_markdown(topic, plan))
     _write(out / f"{topic.id}.json", generate.plan_to_json(plan))
+
+
+def _save_decision(decision: dict, args) -> None:
+    print(f"저장: {feedback.save(decision, Path(args.ledger))}")
+
+
+def cmd_fb_new(args) -> None:
+    video = args.video.upper()
+    if args.option:
+        texts = args.option
+    else:
+        path = Path(args.out) / "scripts" / f"{video}.json"
+        if not path.exists():
+            raise ValueError(f"{path}가 없습니다. 먼저 script --topic {video}를 실행하거나 --option으로 후보를 직접 적으세요.")
+        texts = feedback.options_from_plan(json.loads(path.read_text(encoding="utf-8")), args.slot)
+    decision = feedback.new_decision(video, args.slot, texts, feedback.parse_tags(args.tag))
+    target = Path(args.ledger) / f"{decision['id']}.json"
+    if target.exists() and not args.replace:
+        raise ValueError(f"{decision['id']}는 이미 장부에 있습니다. 새로 만들려면 --replace (예측·결과가 지워집니다).")
+    _save_decision(decision, args)
+    for o in decision["options"]:
+        print(f"  {o['key']}. {o['text']}  [{', '.join(o['tags']) or '유형 없음'}]")
+    print(f"\n다음: 에이전트마다 따로 예측을 적습니다 → feedback predict {decision['id']} --agent claude --auto")
+
+
+def cmd_fb_predict(args) -> None:
+    decision = feedback.load(args.decision, Path(args.ledger))
+    if args.auto:
+        _require_anthropic_key()
+        p = feedback.auto_predict(decision, args.agent)
+    elif args.pick:
+        feedback.add_prediction(decision, args.agent, args.pick, args.confidence, args.reason or "")
+        p = decision["predictions"][-1]
+    else:
+        raise ValueError("--pick 후보번호 또는 --auto(Claude가 예측)를 주세요.")
+    _save_decision(decision, args)
+    conf = "" if p["confidence"] is None else f", 확신도 {p['confidence']:.2f}"
+    print(f"{args.agent}: {p['pick']}번{conf}  {p['reason']}")
+
+
+def cmd_fb_pick(args) -> None:
+    ledger = Path(args.ledger)
+    decision = feedback.load(args.decision, ledger)
+    model = feedback.reader_model(feedback.load_all(ledger))
+    rng = random.Random(args.seed) if args.seed is not None else None
+    decision["tested"] = feedback.pick_test_options(decision, model, args.max, rng)
+    _save_decision(decision, args)
+    favorite, _ = feedback.consensus(decision)
+    voted = {p["pick"] for p in decision["predictions"]}
+    print("YouTube Studio A/B 테스트(또는 독자 패널)에 올릴 후보:")
+    for key in decision["tested"]:
+        role = "에이전트 합의" if key == favorite else ("반대 후보: 에이전트가 안 고름" if key not in voted else "독자 모델 탐색")
+        print(f"  {key}. {feedback.option(decision, key)['text']}  ({role})")
+
+
+def cmd_fb_result(args) -> None:
+    decision = feedback.load(args.decision, Path(args.ledger))
+    if bool(args.ab) == bool(args.panel):
+        raise ValueError("--ab 또는 --panel 중 하나만 주세요.")
+    if args.ab:
+        out = feedback.record_result(decision, "ab", feedback.parse_ab(args.ab), args.verdict, args.note or "", replace=args.replace)
+    else:
+        out = feedback.record_result(decision, "panel", feedback.parse_panel(args.panel), note=args.note or "", replace=args.replace)
+    _save_decision(decision, args)
+    verdict = feedback.AB_VERDICTS[out["verdict"]]
+    print(f"독자 결과: {verdict}" + (f", 승자 {out['winner']}번" if out["winner"] else ""))
+
+
+def cmd_fb_report(args) -> None:
+    decisions = feedback.load_all(Path(args.ledger))
+    if not decisions:
+        print(f"장부({args.ledger})가 비어 있습니다. feedback new로 시작하세요.", file=sys.stderr)
+        sys.exit(1)
+    _write(Path(args.out) / "feedback_report.md", feedback.report_markdown(decisions, _load_benchmark(args)))
+    for r in feedback.agent_scores(decisions):
+        print(f"{r['agent']}: 독자 승자 {r['hits']}/{r['n']} 맞힘 (우연 기대 {r['chance']:.1f}) → {r['verdict']}")
+
+
+def cmd_fb_status(args) -> None:
+    for line in feedback.status_lines(feedback.load_all(Path(args.ledger))) or ["장부가 비어 있습니다."]:
+        print(line)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -256,6 +342,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--bank", help="아이템 뱅크 CSV 경로 (기본: 내장 topic_bank.csv)")
     p.add_argument("--out", default="output", help="결과 저장 폴더 (기본: output)")
     p.add_argument("--env-file", default=".env", help="API 키를 읽을 .env 경로 (기본: 현재 폴더의 .env, 읽기만 함)")
+    p.add_argument("--ledger", default=feedback.DEFAULT_LEDGER, help="독자 채점 장부 폴더 (기본: feedback)")
     sub = p.add_subparsers(dest="command", required=True)
 
     s = sub.add_parser("setup", help="API 키를 .env에 저장하고 작동 확인")
@@ -327,6 +414,48 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--benchmark", help="참고할 benchmark.json (기본: 가장 최근 실행 폴더)")
     s.add_argument("--prompt-only", action="store_true", help="API 호출 없이 프롬프트만 저장 (claude.ai에 붙여 넣기용)")
     s.set_defaults(func=cmd_script)
+
+    fb = sub.add_parser("feedback", help="독자 채점 장부: 에이전트 예측과 독자 결과를 따로 적고 비교")
+    fsub = fb.add_subparsers(dest="action", required=True)
+
+    s = fsub.add_parser("new", help="표현 후보를 장부에 등록 (기본: script 결과의 제목 후보)")
+    s.add_argument("video", help="아이템 id (예: M03)")
+    s.add_argument("--slot", default="title", help="title / thumbnail / hook / scene 등 (기본: title)")
+    s.add_argument("--option", action="append", help="후보를 직접 적기. 여러 번 쓸 수 있음 (없으면 기획안 JSON에서 읽음)")
+    s.add_argument("--tag", action="append", help="표현 유형 직접 붙이기 (예: 1=구체 장면;감정). 여러 번 쓸 수 있음")
+    s.add_argument("--replace", action="store_true", help="같은 선택이 있으면 새로 만들기 (예측·결과 삭제)")
+    s.set_defaults(func=cmd_fb_new)
+
+    s = fsub.add_parser("predict", help="에이전트 예측 적기 (독자 결과를 보기 전에만)")
+    s.add_argument("decision", help="선택 id (예: M03-title)")
+    s.add_argument("--agent", required=True, help="예측한 에이전트 이름 (예: claude, codex)")
+    s.add_argument("--pick", help="독자가 고를 것 같은 후보 번호")
+    s.add_argument("--confidence", type=float, help="그 후보가 이길 확률 0~1")
+    s.add_argument("--reason", help="한두 문장 근거")
+    s.add_argument("--auto", action="store_true", help="Claude가 후보 순서를 섞어 따로 예측 (API 키 필요)")
+    s.set_defaults(func=cmd_fb_predict)
+
+    s = fsub.add_parser("pick", help="A/B 테스트·패널에 올릴 후보 고르기 (합의 후보 + 반대 후보 + 탐색)")
+    s.add_argument("decision")
+    s.add_argument("--max", type=int, default=3, help="올릴 후보 수 (YouTube A/B는 최대 3개)")
+    s.add_argument("--seed", type=int, help="같은 결과를 다시 뽑고 싶을 때")
+    s.set_defaults(func=cmd_fb_pick)
+
+    s = fsub.add_parser("result", help="독자 결과 적기 (YouTube A/B 또는 독자 패널)")
+    s.add_argument("decision")
+    s.add_argument("--ab", help="A/B 시청 시간 점유율(%%) 예: 1=41,3=35,5=24")
+    s.add_argument("--verdict", choices=list(feedback.AB_VERDICTS), help="YouTube 판정: winner(승자) / same(차이 없음) / inconclusive(판정 불가)")
+    s.add_argument("--panel", help="독자 패널 맞힌(고른) 수/인원 예: 1=4/5,2=1/5")
+    s.add_argument("--note", help="메모")
+    s.add_argument("--replace", action="store_true", help="이미 적힌 결과를 바꾸기")
+    s.set_defaults(func=cmd_fb_result)
+
+    s = fsub.add_parser("report", help="에이전트 적중·합의 강도·표현 유형별 학습 보고서")
+    s.add_argument("--benchmark", help="비교할 benchmark.json (기본: 가장 최근 실행 폴더)")
+    s.set_defaults(func=cmd_fb_report)
+
+    s = fsub.add_parser("status", help="장부에 있는 선택과 진행 상태")
+    s.set_defaults(func=cmd_fb_status)
     return p
 
 

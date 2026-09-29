@@ -120,7 +120,7 @@ def _benchmark_context(topic: Topic, benchmark: dict, max_items: int = 8) -> str
 
 
 def build_prompt(
-    topic: Topic, research: dict | None = None, minutes: int = 10, benchmark: dict | None = None
+    topic: Topic, research: dict | None = None, minutes: int = 10, benchmark: dict | None = None, lessons: str = ""
 ) -> str:
     context = "\n\n".join(
         c for c in (_research_context(research or {}), _benchmark_context(topic, benchmark or {})) if c
@@ -146,6 +146,9 @@ YMYL 위험도: {topic.risk}
 """
     if context:
         prompt += "\n조사 자료\n" + context + "\n"
+    if lessons:
+        # 에이전트끼리의 합의가 아니라 우리 채널 독자 실험에서 확인된 것만 들어온다 (feedback.lessons)
+        prompt += "\n우리 채널 독자 실험에서 확인된 것\n" + lessons + "\n"
     return prompt
 
 
@@ -181,8 +184,10 @@ def generate_plan(
     minutes: int = 10,
     client: anthropic.Anthropic | None = None,
     benchmark: dict | None = None,
+    lessons: str = "",
 ) -> VideoPlan:
-    return call_structured(SYSTEM_PROMPT, build_prompt(topic, research, minutes, benchmark), VideoPlan, client)
+    prompt = build_prompt(topic, research, minutes, benchmark, lessons)
+    return call_structured(SYSTEM_PROMPT, prompt, VideoPlan, client)
 
 
 PRE_UPLOAD_CHECKLIST = [

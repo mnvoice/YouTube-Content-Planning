@@ -5,7 +5,8 @@
 - **무엇을 만들까**: 7개 콘텐츠 기둥, 45개 검증 후보 아이템 → [docs/PLAN.md](docs/PLAN.md)
 - **소재를 어떻게 구할까**: 발견 → 검증 → 확정 방법과 매주 루틴 → [docs/SOURCING.md](docs/SOURCING.md)
 - **AI로 어떻게 만들까**: 제작 흐름, 화면 가독성, YouTube·국내 정책 → [docs/PRODUCTION.md](docs/PRODUCTION.md)
-- **자동화 도구 `ytplan`**: 아이템 조사 → 점수 → 캘린더 → 대본 생성 (아래)
+- **독자에게 배우기**: 에이전트 합의가 아니라 독자 반응(A/B 테스트·독자 패널)으로 표현을 고르는 법, 참고 논문 → [docs/FEEDBACK.md](docs/FEEDBACK.md)
+- **자동화 도구 `ytplan`**: 아이템 조사 → 점수 → 캘린더 → 대본 생성 → 독자 결과로 채점 (아래)
 - **바로 보는 결과 예시** (API 키 없이 만든 것): [순위표](examples/ranking.md) · [2026년 10~12월 업로드 캘린더](examples/calendar.md) · [M03 기획 프롬프트](examples/scripts/M03_prompt.md)
 
 ## 도구가 하는 일
@@ -27,7 +28,8 @@
 | `ideas` | 벤치마크 히트 영상을 역기획해 새 아이템 제안, `--append`로 뱅크에 추가 | Anthropic (없으면 `--prompt-only`) |
 | `rank` | 점수 매겨 순위표 만들기 | 없음 (조사 결과가 있으면 반영) |
 | `calendar` | 기둥을 섞고 시즌을 맞춘 업로드 일정 | 없음 |
-| `script` | 영상 기획안(대본) 생성 | Anthropic (없으면 `--prompt-only`) |
+| `script` | 영상 기획안(대본) 생성. 독자 실험에서 확인된 표현 유형이 있으면 프롬프트에 반영 | Anthropic (없으면 `--prompt-only`) |
+| `feedback` | 독자 채점 장부: 표현 후보 등록 → 에이전트별 예측 → A/B·패널 후보 고르기 → 독자 결과 → 에이전트 적중률·표현 유형별 학습 보고서 | 없음 (`predict --auto`만 Anthropic) |
 
 ## 빠른 시작
 
@@ -125,7 +127,7 @@ python -m ytplan script --topic M03        # output/scripts/M03.md
 ## 폴더 구조
 
 ```
-docs/                 기획 문서 (전략, 소재 발굴, 제작·정책)
+docs/                 기획 문서 (전략, 소재 발굴, 제작·정책, 독자 피드백)
 ytplan/
   data/topic_bank.csv 아이템 뱅크
   sources/            youtube.py · naver.py · news.py
@@ -136,6 +138,7 @@ ytplan/
   scoring.py          점수 모델
   planner.py          업로드 캘린더
   generate.py         Claude 기획안 생성
+  feedback.py         독자 채점 장부 (에이전트 예측 vs 독자 결과, feedback)
   setup_keys.py       API 키 저장·확인 (setup)
   cli.py              명령줄 도구
 tests/                pytest 테스트 (네트워크 없이 실행)
