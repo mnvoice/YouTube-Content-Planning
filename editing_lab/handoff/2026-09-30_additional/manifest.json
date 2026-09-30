@@ -1,0 +1,23 @@
+[
+  {
+    "source": "/Users/jeong-ujin_1/CodexWork/Codex/2026-09-24/NLP_공부/experiments/paper_debate_2026-09-26_001/report.md",
+    "file": "report.md",
+    "sha256": "a321d6f35901e95cecbccb667c20df7f987d766cf749fd000aebafb0d7019054",
+    "status": "success",
+    "characters": 3109
+  },
+  {
+    "source": "/Users/jeong-ujin_1/CodexWork/Codex/2026-09-24/NLP_공부/notes/학습목차_2026-09-26_018.md",
+    "file": "학습목차_2026-09-26_018.md",
+    "sha256": "67b8825c3f3d15661efbdba8d51844b9c06b69a2cfb83e1a91277247f9cefe20",
+    "status": "success",
+    "characters": 300
+  },
+  {
+    "source": "/Users/jeong-ujin_1/CodexWork/Codex/2026-09-26/ytplan_교환/3_검증기록/2026-09-26_NLP_글쓰기기여평가_v1/학습기여_평가와_근거.md",
+    "file": "학습기여_평가와_근거.md",
+    "sha256": "7345cdaf2b140580af05cbbbfb8934b1f2e12f6612f2b248c5d2ab4a9739f819",
+    "status": "success",
+    "characters": 7101
+  }
+]
