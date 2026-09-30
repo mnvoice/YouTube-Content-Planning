@@ -1,7 +1,7 @@
 # 다음 실행 전에 읽을 파일 (3.1판 + 2026-09-30 운영 결정)
 
 진행자는 편집 사례를 시작하기 전에 아래 파일을 **실제로 읽고**, 저장소의 `editing_lab/`에서 `sha256sum -c NEXT_RUN.sha256`을 실행해 이 표와 대조한 뒤 결과를 새 JSONL 작업 기록에 남긴다.
-다르면 멈추고 사용자에게 알린다. `judgments.jsonl`과 `cases/`가 생긴 뒤에는 그것도 읽는다 (아직 없음).
+다르면 멈추고 사용자에게 알린다. 5절의 사례 기록과 `judgments.jsonl`도 읽는다.
 검토 에이전트를 새 세션에서 다시 만들 때는 README의 '새 세션에서 이어 갈 때' 순서를 따른다.
 
 ## 1. 인수인계와 원자료 (원본, 수정 금지)
@@ -47,9 +47,24 @@
 | `receipts/2026-09-30_v3.1/reviewer_3.md` | `009eb638314fc11b977cb476fe9783ef7db03b49b47bac02dfe279b159f7f36f` | 에이전트 3의 3.1판 수신 확인 |
 | `receipts/2026-09-30_v3.1/SUMMARY.md` | `be88b62caffa5270ff5d44d3355a547dc6b2ab64a99ba04d2de19ac6f22ed550` | 3.1판 수신 확인 대조 |
 
+## 5. 추가 자료와 첫 편집 사례 (2026-09-30)
+
+| 파일 | SHA-256 | 읽는 이유 |
+|---|---|---|
+| `handoff/2026-09-30_additional/report.md` | `a321d6f35901e95cecbccb667c20df7f987d766cf749fd000aebafb0d7019054` | 2026-09-26 세 논문 토론 보고서. 211자 사례의 목적(13행), B의 출처(21·23행) |
+| `handoff/2026-09-30_additional/학습기여_평가와_근거.md` | `7345cdaf2b140580af05cbbbfb8934b1f2e12f6612f2b248c5d2ab4a9739f819` | 추가 자료 |
+| `handoff/2026-09-30_additional/학습목차_2026-09-26_018.md` | `67b8825c3f3d15661efbdba8d51844b9c06b69a2cfb83e1a91277247f9cefe20` | 추가 자료 |
+| `handoff/2026-09-30_additional/보류목록.json` | `4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945` | 비어 있음(`[]`) |
+| `handoff/2026-09-30_additional/manifest.json` | `fd0a3097df293c48f26b036417baddd9cffaa261c765c27102124312adfb182e` | 추가 자료의 원래 경로와 SHA-256 |
+| `cases/CASE-20260930-001.md` | `29a5fdc9ff899a7061c8fc37b04840a2b4cb20a07859501e5eb75d9ca1f3986c` | 첫 편집 사례(배치와 정보 공개 순서). 사용자 반응 1건과 판단 갱신까지 끝남 |
+
+- `judgments.jsonl`은 덧붙이기 전용이라 지문 목록에 넣지 않는다. 읽을 때 줄 수와 SHA-256을 작업 기록에 남긴다. 2026-09-30 기준 2줄 (`J-20260930-001`, `J-20260930-002`), `9b2940bd76edba8467c4d3fadd5010b62b00b819d2cb0f549ef018235fd919e3`.
+- 사례의 검토문 원문(`cases/CASE-20260930-001/`)과 작업 기록(`.jsonl`)은 필요할 때 읽는다.
+
 ## 아직 없는 것
 
-- 기존 토론 보고서 `report.md`와 기존 논문 검토 자료: 사용자가 전달하면 `handoff/`에 새 폴더로 보관하고, 세 에이전트가 읽게 한 뒤 이 목록에 더한다. 그 전에는 내용을 추측하지 않는다.
+- 2026-09-26 토론의 개별 검토문(`flower_round1.md`, `doc_round1.md`, `summeval_round2.md`): 받지 못함. 내용을 추측하지 않는다.
 - 논문 본문: 네트워크 정책으로 읽지 못함 (`sources/SOURCES.md`, `criteria/v3.1/PAPER_MAP.md`).
+- 이 글을 처음 읽는 독자의 반응: 없음. 외부 독자 모집은 사용자 지시 없이 시작하지 않는다.
 
 이전 판(1판 복원본 `versions/v1_restored/`, 2판 `roles/*.md`, 3판 `roles/v3/` 등)은 기록용이며 실행 때 읽지 않는다.
