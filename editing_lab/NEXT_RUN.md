@@ -1,4 +1,4 @@
-# 다음 실행 전에 읽을 파일 (3.1판 기준)
+# 다음 실행 전에 읽을 파일 (3.1판 + 2026-09-30 운영 결정)
 
 진행자는 편집 사례를 시작하기 전에 아래 파일을 **실제로 읽고**, 저장소의 `editing_lab/`에서 `sha256sum -c NEXT_RUN.sha256`을 실행해 이 표와 대조한 뒤 결과를 새 JSONL 작업 기록에 남긴다.
 다르면 멈추고 사용자에게 알린다. `judgments.jsonl`과 `cases/`가 생긴 뒤에는 그것도 읽는다 (아직 없음).
@@ -13,10 +13,11 @@
 | `handoff/2026-09-30_v2/manifest.json` | `ecf91f116ab1a96a0e34a94b2dc083e3ab82c43f911d4e03d91839a9fb52e206` | 위 두 파일의 원래 경로와 SHA-256 |
 | `sources/handoff_check_2026-09-30.md` | `dcf62d5984562ff3d6e83aa79956ddbdac8fc85e3fb43323af9a9e1937f24d7f` | 인수인계서 점검 결과: 받지 못한 자료, 다듬을 점 |
 
-## 2. 역할과 절차 (3.1판, 현재 기준)
+## 2. 역할과 절차 (3.1판 + 운영 결정, 결정 기록이 우선)
 
 | 파일 | SHA-256 | 읽는 이유 |
 |---|---|---|
+| `DECISIONS_2026-09-30.md` | `d6d741afca615acee6737d89f2a182d39a1cfaf898e04603fbbd777740d38ca8` | 사용자 결정 U1~U10과 진행자 처리. 3.1판과 다르면 이것이 우선 |
 | `roles/v3.1/common_rules.md` | `e53ca84ab4b6c917ccf0403f8c1b3ca44b97f38e6e6111ab35203798d836defb` | 모든 역할 공통 규칙, Q1~Q16 처리 규칙, 논문 읽기 상태 |
 | `roles/v3.1/moderator.md` | `8b0e40b44ec72e3b6cde9f8920b3d99935c26a266c94ed5d3d7634c83faf0405` | 진행자, Self-Refine·사람 피드백 연구 적용 |
 | `roles/v3.1/reviewer_1_purpose_expression.md` | `64ecef3986eb20f175e7008c46e69154318d804cd7c71352e337603751f73020` | 에이전트 1, Flower–Hayes 기준 |
