@@ -2,3 +2,4 @@
 {"ts": "2026-10-01T06:28:38Z", "actor": "user", "action": "decide", "target": "U11", "result": "ok", "detail": "추천안으로 진행: 합친 변경안 1개 + 변경 목록"}
 {"ts": "2026-10-01T06:28:38Z", "actor": "moderator", "action": "write_decisions", "target": "DECISIONS_2026-10-01.md", "result": "ok", "sha256": "e95b3fb31c155b70c87ac99f9bc7bdd8c99c646aab853832e41a254d82f5782b"}
 {"ts": "2026-10-01T06:28:38Z", "actor": "moderator", "action": "link_next_run", "target": "NEXT_RUN.md, NEXT_RUN.sha256", "result": "ok", "detail": "결정 기록 추가 (29→30개)", "sha256_next_run_md": "fd55bcc997fb2f17ce77fc19bf96fd1828ed681674ad1f306b4b80094c70cf4f"}
+{"ts": "2026-10-01T06:30:53Z", "actor": "moderator", "action": "check_upload", "target": "/root/.claude/uploads, 메시지 첨부", "result": "blocked", "detail": "세 번째 요청('이미지 다시 첨부했어요')에도 이미지 파일·메시지 내 이미지 모두 없음. zip 업로드는 이전에 두 번 도착함"}
