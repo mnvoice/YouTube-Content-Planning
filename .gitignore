@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 output/
+
+# 저작권이 있는 책 본문·사진: 공개 저장소에 올리지 않음 (editing_lab/DECISIONS_2026-10-01.md)
+editing_lab/private/
