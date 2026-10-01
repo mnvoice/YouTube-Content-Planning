@@ -18,6 +18,7 @@
 | 파일 | SHA-256 | 읽는 이유 |
 |---|---|---|
 | `DECISIONS_2026-09-30.md` | `d6d741afca615acee6737d89f2a182d39a1cfaf898e04603fbbd777740d38ca8` | 사용자 결정 U1~U10과 진행자 처리. 3.1판과 다르면 이것이 우선 |
+| `DECISIONS_2026-10-01.md` | `e95b3fb31c155b70c87ac99f9bc7bdd8c99c646aab853832e41a254d82f5782b` | 사용자 결정 U11(합친 변경안 1개 + 변경 목록), 이미지 추출 규칙, 합치는 규칙과 한계. 앞 결정과 다르면 이것이 우선 |
 | `roles/v3.1/common_rules.md` | `e53ca84ab4b6c917ccf0403f8c1b3ca44b97f38e6e6111ab35203798d836defb` | 모든 역할 공통 규칙, Q1~Q16 처리 규칙, 논문 읽기 상태 |
 | `roles/v3.1/moderator.md` | `8b0e40b44ec72e3b6cde9f8920b3d99935c26a266c94ed5d3d7634c83faf0405` | 진행자, Self-Refine·사람 피드백 연구 적용 |
 | `roles/v3.1/reviewer_1_purpose_expression.md` | `64ecef3986eb20f175e7008c46e69154318d804cd7c71352e337603751f73020` | 에이전트 1, Flower–Hayes 기준 |

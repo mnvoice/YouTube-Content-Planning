@@ -1,0 +1,4 @@
+{"ts": "2026-10-01T06:28:38Z", "actor": "moderator", "action": "check_upload", "target": "/root/.claude/uploads", "result": "blocked", "detail": "사용자가 요청한 이미지가 두 번 모두 도착하지 않음. 새 파일 없음. 내용 추측하지 않음"}
+{"ts": "2026-10-01T06:28:38Z", "actor": "user", "action": "decide", "target": "U11", "result": "ok", "detail": "추천안으로 진행: 합친 변경안 1개 + 변경 목록"}
+{"ts": "2026-10-01T06:28:38Z", "actor": "moderator", "action": "write_decisions", "target": "DECISIONS_2026-10-01.md", "result": "ok", "sha256": "e95b3fb31c155b70c87ac99f9bc7bdd8c99c646aab853832e41a254d82f5782b"}
+{"ts": "2026-10-01T06:28:38Z", "actor": "moderator", "action": "link_next_run", "target": "NEXT_RUN.md, NEXT_RUN.sha256", "result": "ok", "detail": "결정 기록 추가 (29→30개)", "sha256_next_run_md": "fd55bcc997fb2f17ce77fc19bf96fd1828ed681674ad1f306b4b80094c70cf4f"}
