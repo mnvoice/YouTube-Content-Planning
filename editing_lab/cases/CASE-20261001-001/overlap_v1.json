@@ -1,0 +1,12 @@
+{
+ "source_chars": 1843,
+ "target_chars": 1172,
+ "min_chars": 8,
+ "longest_shared_span": "",
+ "longest_shared_len": 0,
+ "shared_spans": [],
+ "shared_span_chars": 0,
+ "target_coverage": 0.0,
+ "eojeol3_shared": [],
+ "eojeol3_jaccard": 0.0
+}

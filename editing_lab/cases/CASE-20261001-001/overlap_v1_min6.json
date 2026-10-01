@@ -1,0 +1,17 @@
+{
+ "source_chars": 1843,
+ "target_chars": 1172,
+ "min_chars": 6,
+ "longest_shared_span": "기시작했다.",
+ "longest_shared_len": 6,
+ "shared_spans": [
+  "기시작했다.",
+  "기때문이다.",
+  "기시작했다.",
+  "할수도있다."
+ ],
+ "shared_span_chars": 24,
+ "target_coverage": 0.0205,
+ "eojeol3_shared": [],
+ "eojeol3_jaccard": 0.0
+}
