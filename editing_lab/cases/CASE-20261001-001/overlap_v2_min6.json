@@ -1,0 +1,15 @@
+{
+ "source_chars": 1843,
+ "target_chars": 1246,
+ "min_chars": 6,
+ "longest_shared_span": "기시작했다.",
+ "longest_shared_len": 6,
+ "shared_spans": [
+  "기시작했다.",
+  "기시작했다."
+ ],
+ "shared_span_chars": 12,
+ "target_coverage": 0.0096,
+ "eojeol3_shared": [],
+ "eojeol3_jaccard": 0.0
+}
