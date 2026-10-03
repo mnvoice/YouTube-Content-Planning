@@ -20,6 +20,9 @@
 | `DECISIONS_2026-09-30.md` | `d6d741afca615acee6737d89f2a182d39a1cfaf898e04603fbbd777740d38ca8` | 사용자 결정 U1~U10과 진행자 처리. 3.1판과 다르면 이것이 우선 |
 | `DECISIONS_2026-10-01.md` | `e95b3fb31c155b70c87ac99f9bc7bdd8c99c646aab853832e41a254d82f5782b` | 사용자 결정 U11(합친 변경안 1개 + 변경 목록), 이미지 추출 규칙, 합치는 규칙과 한계. 앞 결정과 다르면 이것이 우선 |
 | `DECISIONS_2026-10-01_b.md` | `f2329aeba2b39c6b8db735d4dec10ce10c40c314c367315c66aaebfb1e2fd0b4` | 사용자 결정 U12(새 글 창작), 저작권 거리 지키기, 창작용 역할 조정. 앞 결정과 다르면 이것이 우선 |
+| `DECISIONS_2026-10-03.md` | `b26490cff7c2e4f0b271445fd62f94da19a512909fa26cdd943a93901f5e8d13` | 사용자 결정 U13(완료 기준 먼저, 하네스 0·1단계). 앞 결정과 다르면 이것이 우선 |
+| `harness/ACCEPTANCE.md` | `375bef73605545b68da0e3ccb8c4d906d3d163621335849c8bcf4945348a64d7` | 기록 하네스의 유일한 완료 기준표. 기준 변경은 사용자 승인 필요 |
+| `handoff/2026-10-03_harness/manifest.json` | `bf67226bf3c152d2d898bb7a67425490a72a4d6a2f145300767e4ef6ce24ea0a` | 받은 하네스 원본의 SHA-256 |
 | `roles/v3.1/common_rules.md` | `e53ca84ab4b6c917ccf0403f8c1b3ca44b97f38e6e6111ab35203798d836defb` | 모든 역할 공통 규칙, Q1~Q16 처리 규칙, 논문 읽기 상태 |
 | `roles/v3.1/moderator.md` | `8b0e40b44ec72e3b6cde9f8920b3d99935c26a266c94ed5d3d7634c83faf0405` | 진행자, Self-Refine·사람 피드백 연구 적용 |
 | `roles/v3.1/reviewer_1_purpose_expression.md` | `64ecef3986eb20f175e7008c46e69154318d804cd7c71352e337603751f73020` | 에이전트 1, Flower–Hayes 기준 |

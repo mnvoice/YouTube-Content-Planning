@@ -24,8 +24,8 @@ def test_no_overlap_for_unrelated_texts():
 
 
 def test_eojeol_trigrams_shared():
-    r = oc.report("우리는 무엇을 이루고자 하는가", "그때 우리는 무엇을 이루고자 했나", min_chars=30)
-    assert "우리는 무엇을 이루고자" in r["eojeol3_shared"]
+    r = oc.report("바람이 부는 저녁에 창문을 닫았다", "어제 바람이 부는 저녁에 걸었다", min_chars=30)
+    assert "바람이 부는 저녁에" in r["eojeol3_shared"]
 
 
 def test_load_units_json(tmp_path):

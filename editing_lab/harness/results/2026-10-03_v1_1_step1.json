@@ -1,0 +1,159 @@
+{
+ "harness": "/home/user/YouTube-Content-Planning/editing_lab/harness/harness.py",
+ "harness_sha256": "0016256c2e4625409937c553654bdc53a096f339fd6dfe932e0f93fc0682832a",
+ "criteria": {
+  "A1": {
+   "result": "PASS",
+   "target": 1,
+   "note": "5종 모두 바이트 동일"
+  },
+  "A2": {
+   "result": "PASS",
+   "target": 1,
+   "note": "5종 모두 수용, 바이트 동일"
+  },
+  "D1": {
+   "result": "PASS",
+   "target": 1,
+   "note": "스냅샷 9개 중 모순 0"
+  },
+  "D2": {
+   "result": "PASS",
+   "target": 1,
+   "note": "스냅샷 9개 중 다음 명령 실패 0"
+  },
+  "D3": {
+   "result": "PASS",
+   "target": 1,
+   "note": "지워지거나 바뀐 기록 0"
+  },
+  "B1": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "해시 불일치 후보"
+  },
+  "B2": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "제안 번호 중복"
+  },
+  "B3": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "없는 제안 대상 반론"
+  },
+  "B4": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "원문 변조 뒤 verify"
+  },
+  "B5": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "검토 3개 전 반론·후보"
+  },
+  "B6": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "같은 역할 재제출 뒤 기존 기록"
+  },
+  "B7": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "'변화' 후보의 동일 내용 비교"
+  },
+  "B8": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "보류 기록 5건"
+  },
+  "B9": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "보류 기록의 추가 칸: 없음"
+  },
+  "C1": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "우회 7"
+  },
+  "C2": {
+   "result": "FAIL",
+   "target": "2–3",
+   "note": "그대로 넣었을 때 거부 2"
+  },
+  "C3": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "자리없음 18"
+  },
+  "C3b": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "보류 0"
+  },
+  "C4": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "전용 기록 종류 0/8"
+  },
+  "C5": {
+   "result": "FAIL",
+   "target": 3,
+   "note": "거부 또는 진행 안 됨"
+  },
+  "C6": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "거부되거나 빈칸이 채워짐"
+  },
+  "E1": {
+   "result": "FAIL",
+   "target": "항상",
+   "note": "추적 파일 138개 중 8자 겹침 파일 3: ['editing_lab/cases/CASE-20260930-001/4_adjust_reviewer_1.md(1)', 'editing_lab/handoff/2026-09-30_additional/report.md(1)', 'editing_lab/receipts/2026-09-30/reviewer_1.md(1)']"
+  },
+  "F1": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "README 없음"
+  },
+  "F2": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "Traceback 발생"
+  },
+  "F3": {
+   "result": "FAIL",
+   "target": 2,
+   "note": "기존 사례에 보류 기록이 생김"
+  },
+  "G1": {
+   "result": "PASS",
+   "target": "유지",
+   "note": "끝까지 성공"
+  }
+ },
+ "replay": {
+  "facts": 38,
+  "case_b_included": true,
+  "counts": {
+   "그대로": 13,
+   "우회": 7,
+   "자리없음": 18,
+   "보류": 0
+  },
+  "truthful_rejected": 2,
+  "dedicated_kinds_ok": {
+   "진행자 결정": false,
+   "조정": false,
+   "단계 생략": false,
+   "반응 전 예상": false,
+   "블라인드 배정": false,
+   "판단 갱신": false,
+   "창작 초고": false,
+   "출처": false
+  }
+ },
+ "measured_at": "2026-10-03T11:54:46Z",
+ "label": "v1_1_step1"
+}

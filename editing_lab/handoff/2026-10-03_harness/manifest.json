@@ -1,0 +1,11 @@
+{
+ "received": "2026-10-03",
+ "uploaded_as": "31f60312-story_harness_3files_2026-10-03_001.zip",
+ "note": "받은 그대로 보관, 수정 금지. 작성 주체는 사용자 설명상 코덱스(확인 불가). README가 가리키는 examples/와 test_harness.py는 zip에 없음",
+ "files": {
+  "extracted/README.md": "350cc3934a4e69fc3197be57435edf83c32d60ff7b8192146ca89e0135559003",
+  "extracted/ROLE_GUIDE.md": "27f02fe2ef05e03dc7996bc244e42a39dd413713c4099511634dafb1c4a6f9e7",
+  "extracted/harness.py": "01726f7335d358ece632f3410b60f5848903e321dcd0c0037400b765b34b5636",
+  "story_harness_3files_2026-10-03_001.zip": "4b835c9e5dc4db7231d78022241de608b5308bb3866d35d8acaef2ab5964b5d3"
+ }
+}
