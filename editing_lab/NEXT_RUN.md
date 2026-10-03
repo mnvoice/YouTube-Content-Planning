@@ -22,6 +22,7 @@
 | `DECISIONS_2026-10-01_b.md` | `f2329aeba2b39c6b8db735d4dec10ce10c40c314c367315c66aaebfb1e2fd0b4` | 사용자 결정 U12(새 글 창작), 저작권 거리 지키기, 창작용 역할 조정. 앞 결정과 다르면 이것이 우선 |
 | `DECISIONS_2026-10-03.md` | `b26490cff7c2e4f0b271445fd62f94da19a512909fa26cdd943a93901f5e8d13` | 사용자 결정 U13(완료 기준 먼저, 하네스 0·1단계). 앞 결정과 다르면 이것이 우선 |
 | `harness/ACCEPTANCE.md` | `7dd0bfe3996e74696960ced1de661f14c4996a5797e2918da9fa4a2a48802a77` | 기록 하네스의 유일한 완료 기준표. 기준 변경은 사용자 승인 필요 |
+| `design/짧은글_설계메모_2026-10-03_001.md` | `8a4bddd404f0f6257ee8ce35217565e961a8cf972ada7d38dc8cf19d93175cd9` | 설계 토론 기록(결정 아님). 재미 토론의 부재, 토큰 실측과 절감 방안, 시작·완료 조건, 결정 대기 7건 |
 | `handoff/2026-10-03_harness/manifest.json` | `bf67226bf3c152d2d898bb7a67425490a72a4d6a2f145300767e4ef6ce24ea0a` | 받은 하네스 원본의 SHA-256 |
 | `roles/v3.1/common_rules.md` | `e53ca84ab4b6c917ccf0403f8c1b3ca44b97f38e6e6111ab35203798d836defb` | 모든 역할 공통 규칙, Q1~Q16 처리 규칙, 논문 읽기 상태 |
 | `roles/v3.1/moderator.md` | `8b0e40b44ec72e3b6cde9f8920b3d99935c26a266c94ed5d3d7634c83faf0405` | 진행자, Self-Refine·사람 피드백 연구 적용 |
